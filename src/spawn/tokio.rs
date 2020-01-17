@@ -8,6 +8,8 @@ use crate::handle::{JoinHandle, RuntimeJoinHandle};
 use crate::spawn::install;
 use crate::Canceled;
 
+pub type TokioJoinHandle<T> = tokio::task::JoinHandle<Result<T, Canceled>>;
+
 impl<T> RuntimeJoinHandle for tokio::task::JoinHandle<Result<T, Canceled>>
 where
     T: Send + 'static,

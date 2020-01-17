@@ -43,11 +43,11 @@ impl Future for Cancellation {
             .set(waker::cancellation(cx, *this.state_id));
 
         this.inner.as_mut().poll(cx).map(|v| match v {
-            Some(Some((state_id, true))) => {
+            Some(Some((state_id, false))) => {
                 *this.state_id = state_id;
                 Some(Canceled::Graceful)
             }
-            Some(Some((_, false))) => unreachable!(),
+            Some(Some((_, true))) => Some(Canceled::Forced),
             Some(None) => Some(Canceled::Forced),
             None => None,
         })

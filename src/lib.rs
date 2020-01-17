@@ -126,6 +126,7 @@ mod with_token;
 pub use cancelable::{cancelable, Cancelable};
 pub use cancellation::{cancellation, Cancellation};
 pub use scope::scope;
+pub use scope::{CancelScope, Scope, ScopeFuture};
 pub use spawn::*;
 
 /// The error type for cancellation.
