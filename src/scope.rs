@@ -298,14 +298,13 @@ impl Scope {
 
     pub fn run<Fut>(
         self,
-        f: impl FnOnce(ScopeSpawner, CancelScope) -> Fut,
+        f: impl FnOnce(ScopeSpawner) -> Fut,
     ) -> ScopeFuture<impl Future<Output = Fut::Output>, impl Future<Output = ()>>
     where
         Fut: Future,
     {
         let spawner = self.spawner.clone();
-        let cancel_scope = self.cancel_scope();
-        let inner = f(spawner, cancel_scope);
+        let inner = f(spawner);
 
         let join_event = self.join_events.clone();
         ScopeFuture {
