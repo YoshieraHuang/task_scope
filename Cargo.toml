@@ -29,3 +29,6 @@ optional = true
 version = "0.2.6"
 optional = true
 features = ["full"]
+
+[dev-dependencies]
+net2="0.2"
