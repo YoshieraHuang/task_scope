@@ -5,20 +5,23 @@ use std::time::Duration;
 use task_scope::cancelable;
 use task_scope::Canceled;
 use task_scope::Scope;
-use tokio::time::delay_for;
+use tokio::time::sleep;
+
 #[tokio::test]
 async fn test_scope() {
     let scope = Scope::new();
     let cancel_scope = scope.cancel_scope();
     let work = scope.run(|spawner| {
         async move {
-            spawner.spawn(cancelable_delay(Duration::from_millis(3000)));
-            delay_for(Duration::from_millis(1000)).await;
+            spawner.spawn(cancelable_sleep(Duration::from_millis(3000)));
+            sleep(Duration::from_millis(1000)).await;
             println!("parent work done");
         }
     });
     pin_mut!(work);
-    match select(work, delay_for(Duration::from_millis(2000))).await {
+    let delay = sleep(Duration::from_millis(2000));
+    pin_mut!(delay);
+    match select(work, delay).await {
         Either::Left((w, _)) => println!("scope ret value: {:?}", w),
         Either::Right((_, task)) => {
             cancel_scope.cancel();
@@ -37,7 +40,7 @@ async fn test_scope_in_scope() {
             async move {
                 let inner_scope = Scope::new();
                 spawner.spawn(async move {
-                    cancelable_delay(Duration::from_millis(1000)).await;
+                    cancelable_sleep(Duration::from_millis(1000)).await;
                     println!("outer scope subtask done");
                     cancel_scope.force_cancel();
                     println!("cancel output scope");
@@ -47,7 +50,7 @@ async fn test_scope_in_scope() {
                     .run(|s| {
                         async move {
                             let joiner = s.spawn(async {
-                                cancelable_delay(Duration::from_millis(2000)).await;
+                                cancelable_sleep(Duration::from_millis(2000)).await;
                                 println!("inner scope subtask done");
                             });
                             let _ = joiner.await;
@@ -62,8 +65,9 @@ async fn test_scope_in_scope() {
         .await
         .expect("should run to end");
 }
-async fn cancelable_delay(dur: Duration) {
-    match cancelable(delay_for(dur)).await {
+
+async fn cancelable_sleep(dur: Duration) {
+    match cancelable(sleep(dur)).await {
         Ok(_) => println!("normal delayed"),
         Err(Canceled::Forced) => println!("delay force cancelled"),
         Err(Canceled::Graceful) => println!("delay grace cancelled"),

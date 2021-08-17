@@ -164,9 +164,7 @@ mod futures_impl {
 
 #[cfg(feature = "tokio")]
 mod tokio_impl {
-    use bytes::buf::{Buf, BufMut};
-    use std::mem::MaybeUninit;
-    use tokio::io::{AsyncRead, AsyncWrite, Error, ErrorKind, Result};
+    use tokio::io::{AsyncRead, AsyncWrite, Error, ErrorKind, Result, ReadBuf};
 
     use super::*;
 
@@ -177,29 +175,13 @@ mod tokio_impl {
         fn poll_read(
             mut self: Pin<&mut Self>,
             cx: &mut Context,
-            buf: &mut [u8],
-        ) -> Poll<Result<usize>> {
+            buf: &mut ReadBuf<'_>,
+        ) -> Poll<Result<()>> {
             if let Poll::Ready(Some(reason)) = self.as_mut().poll_canceled(cx) {
                 return Poll::Ready(Err(Error::new(ErrorKind::Other, reason)));
             }
 
             self.project().inner.poll_read(cx, buf)
-        }
-
-        unsafe fn prepare_uninitialized_buffer(&self, buf: &mut [MaybeUninit<u8>]) -> bool {
-            self.inner.prepare_uninitialized_buffer(buf)
-        }
-
-        fn poll_read_buf<B: BufMut>(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context,
-            buf: &mut B,
-        ) -> Poll<Result<usize>> {
-            if let Poll::Ready(Some(reason)) = self.as_mut().poll_canceled(cx) {
-                return Poll::Ready(Err(Error::new(ErrorKind::Other, reason)));
-            }
-
-            self.project().inner.poll_read_buf(cx, buf)
         }
     }
 
@@ -233,18 +215,6 @@ mod tokio_impl {
             }
 
             self.project().inner.poll_shutdown(cx)
-        }
-
-        fn poll_write_buf<B: Buf>(
-            mut self: Pin<&mut Self>,
-            cx: &mut Context,
-            buf: &mut B,
-        ) -> Poll<Result<usize>> {
-            if let Poll::Ready(Some(reason)) = self.as_mut().poll_canceled(cx) {
-                return Poll::Ready(Err(Error::new(ErrorKind::Other, reason)));
-            }
-
-            self.project().inner.poll_write_buf(cx, buf)
         }
     }
 }

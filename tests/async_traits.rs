@@ -9,7 +9,7 @@ use task_scope::{cancelable, scope, spawn};
 fn test_infinite() {
     // this thread never ends as there is a task loops infinitely
     std::thread::spawn(|| {
-        let mut rt = tokio::runtime::Runtime::new().unwrap();
+        let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
             timeout(
                 Duration::from_millis(100),
@@ -35,7 +35,7 @@ fn test_infinite() {
     });
 }
 
-#[tokio::test(threaded_scheduler)]
+#[tokio::test(flavor="multi_thread")]
 async fn test_cancel_infinite() {
     timeout(
         Duration::from_millis(100),

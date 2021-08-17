@@ -1,5 +1,5 @@
 use std::time::Duration;
-use tokio::time::{delay_for, timeout};
+use tokio::time::{sleep, timeout};
 
 use task_scope::{scope, spawn};
 
@@ -7,7 +7,7 @@ use task_scope::{scope, spawn};
 async fn test_basic() {
     scope(async {
         spawn(async {
-            delay_for(Duration::from_millis(500)).await;
+            sleep(Duration::from_millis(500)).await;
 
             println!("child is done");
         })
@@ -17,7 +17,7 @@ async fn test_basic() {
     .await
     .expect("must complete");
 
-    delay_for(Duration::from_millis(1000)).await;
+    sleep(Duration::from_millis(1000)).await;
 }
 
 #[tokio::test]
@@ -27,7 +27,7 @@ async fn test_drop() {
         scope(async {
             spawn(async {
                 println!("child started");
-                delay_for(Duration::from_millis(100)).await;
+                sleep(Duration::from_millis(100)).await;
 
                 panic!("child is canceled");
             })
@@ -37,5 +37,5 @@ async fn test_drop() {
     .await
     .unwrap_err();
 
-    delay_for(Duration::from_millis(60)).await;
+    sleep(Duration::from_millis(60)).await;
 }

@@ -1,14 +1,15 @@
-use futures::channel::mpsc;
-use futures::channel::oneshot;
-use futures::FutureExt;
-use futures::StreamExt;
-use net2::TcpBuilder;
+use futures::{
+    FutureExt, StreamExt, pin_mut,
+    channel::{mpsc, oneshot}
+};
 use std::io;
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::time::Duration;
 use task_scope::{CancelScope, Scope, ScopeSpawner};
-use tokio::net::{self, TcpStream};
-use tokio::time::delay_for;
+use tokio::{
+    net::{self, TcpStream},
+    time::sleep
+};
 
 const HAPPY_EYEBALL_DEFAULT_DELAY: u64 = 250;
 
@@ -49,8 +50,6 @@ async fn happy_eyeball_connect(
         spawner.spawn(async move {
             let conn_result = connect(
                 addr_clone.clone(),
-                None,
-                true,
                 Some(Duration::from_millis(1000)),
             )
             .await;
@@ -70,7 +69,8 @@ async fn happy_eyeball_connect(
             }
         });
 
-        let mut timeout = delay_for(Duration::from_millis(HAPPY_EYEBALL_DEFAULT_DELAY)).fuse();
+        let timeout = sleep(Duration::from_millis(HAPPY_EYEBALL_DEFAULT_DELAY)).fuse();
+        pin_mut!(timeout);
         let mut failure_rx = failure_rx.fuse();
 
         loop {
@@ -103,7 +103,8 @@ async fn happy_eyeball_connect(
     }
 
     // at last, wait for another 250ms
-    let mut timeout = delay_for(Duration::from_millis(HAPPY_EYEBALL_DEFAULT_DELAY)).fuse();
+    let timeout = sleep(Duration::from_millis(HAPPY_EYEBALL_DEFAULT_DELAY)).fuse();
+    pin_mut!(timeout);
 
     loop {
         futures::select! {
@@ -127,34 +128,10 @@ async fn happy_eyeball_connect(
 
 async fn connect(
     addr: SocketAddr,
-    local_addr: Option<IpAddr>,
-    reuse_address: bool,
     connect_timeout: Option<Duration>,
 ) -> io::Result<TcpStream> {
-    let builder = match addr {
-        SocketAddr::V4(_) => TcpBuilder::new_v4()?,
-        SocketAddr::V6(_) => TcpBuilder::new_v6()?,
-    };
 
-    if reuse_address {
-        builder.reuse_address(reuse_address)?;
-    }
-
-    if let Some(local_addr) = local_addr {
-        // Caller has requested this socket be bound before calling connect
-        builder.bind(SocketAddr::new(local_addr, 0))?;
-    } else if cfg!(windows) {
-        // Windows requires a socket be bound before calling connect
-        let any: SocketAddr = match addr {
-            SocketAddr::V4(_) => ([0, 0, 0, 0], 0).into(),
-            SocketAddr::V6(_) => ([0, 0, 0, 0, 0, 0, 0, 0], 0).into(),
-        };
-        builder.bind(any)?;
-    }
-
-    let std_tcp = builder.to_tcp_stream()?;
-
-    let connect = TcpStream::connect_std(std_tcp, &addr);
+    let connect = TcpStream::connect(&addr);
     match connect_timeout {
         Some(dur) => match tokio::time::timeout(dur, connect).await {
             Ok(Ok(s)) => Ok(s),

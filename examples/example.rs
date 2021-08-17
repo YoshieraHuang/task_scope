@@ -2,7 +2,7 @@ use futures::future::FutureExt;
 use futures::{pin_mut, select};
 use std::time::Duration;
 use tokio::signal::ctrl_c;
-use tokio::time::delay_for;
+use tokio::time::sleep;
 
 use task_scope::{cancelable, scope, spawn, Canceled};
 
@@ -13,14 +13,14 @@ async fn main() {
         spawn(scope(async {
             println!("doing a heavy task");
 
-            let result = cancelable(delay_for(Duration::from_secs(5))).await;
+            let result = cancelable(sleep(Duration::from_secs(5))).await;
 
             match result {
                 Err(Canceled::Graceful) => {
                     println!("graceful cancellation is requested");
 
                     // this scope will wait until cancellation finishes
-                    delay_for(Duration::from_secs(1)).await;
+                    sleep(Duration::from_secs(1)).await;
 
                     println!("cancellation is done");
                 }
